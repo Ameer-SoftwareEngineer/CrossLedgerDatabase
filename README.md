@@ -8,19 +8,21 @@ CrossLedgerWeb uses two data-access approaches side by side (see the specificati
 
 **Table schema is not modeled here.** `CrossLedgerWeb`'s EF Core migrations remain the source of truth for every table (`Wallets`, `LedgerEntries`, `Quotes`, `IdempotencyRecords`, etc.). Every procedure in `dbo/StoredProcedures/` runs against those tables by name without redefining them, which is why the project suppresses SQL71501 ("unresolved reference") in `CrossLedgerDatabase.sqlproj` - that warning is expected on every procedure here and is not a real error.
 
-## Planned procedures (specification 4.1)
+## Procedures (specification 4.1)
 
-| Procedure | Responsibility |
-|---|---|
-| `usp_PostTransfer` | Atomic money movement - validates balance, locks the row, inserts the four ledger entries and the idempotency record in one transaction |
-| `usp_GetWalletBalance` | Sums ledger entries forward from the latest snapshot, returns a scalar |
-| `usp_GetTransactionHistory` | Server-side paging with `OFFSET`/`FETCH` |
-| `usp_ReconcileLedger` | Nightly integrity check - asserts the ledger sums to zero per currency |
-| `usp_GetAccountStatement` | Running balance via `SUM() OVER (ORDER BY PostedAt)` |
-| `usp_CheckTransferLimits` | Rolling 24-hour transfer total via an indexed seek, ahead of AML limit enforcement |
-| `usp_GetFxRateOHLC` | Daily open/high/low/close aggregation for the rate chart |
+| Procedure | Responsibility | Status |
+|---|---|---|
+| `usp_PostTransfer` | Atomic money movement - validates balance, locks the wallets, inserts the four ledger entries in one transaction | Done |
+| `usp_GetWalletBalance` | Sums ledger entries forward from the latest snapshot, returns a scalar | Not started |
+| `usp_GetTransactionHistory` | Server-side paging with `OFFSET`/`FETCH` | Not started |
+| `usp_ReconcileLedger` | Nightly integrity check - asserts the ledger sums to zero per currency | Not started |
+| `usp_GetAccountStatement` | Running balance via `SUM() OVER (ORDER BY PostedAt)` | Not started |
+| `usp_CheckTransferLimits` | Rolling 24-hour transfer total via an indexed seek, ahead of AML limit enforcement | Not started |
+| `usp_GetFxRateOHLC` | Daily open/high/low/close aggregation for the rate chart | Not started |
 
-None of these exist yet - this repo currently holds just the project skeleton.
+`usp_PostTransfer` does **not** manage idempotency - that's already handled generically for every command by CrossLedgerWeb's `IdempotencyBehavior` pipeline behaviour (specification 2.3), so it would be redundant (and a second, differently-shaped mechanism) to duplicate it here keyed by `TransferId`.
+
+Concurrency is enforced with `UPDLOCK, HOLDLOCK` reads against `LedgerEntries` per wallet (there's no `WalletBalances` row to lock - balances are derived, specification 2.1), with all four wallets touched by a transfer locked in a fixed ascending-id order to rule out deadlocks between two transfers sharing wallets in opposite roles. Verified live: two concurrent calls against the same wallet - one that can afford its debit, one that can't once the first has posted - genuinely serialize (the second visibly blocks until the first commits) rather than racing to read a stale balance.
 
 ## Build
 

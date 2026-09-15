@@ -1,0 +1,5 @@
+bin/
+obj/
+*.dacpac
+*.publish.xml
+.vs/

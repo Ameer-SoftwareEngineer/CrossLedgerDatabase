@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build">
+  <Sdk Name="Microsoft.Build.Sql" Version="2.2.0" />
+  <PropertyGroup>
+    <Name>CrossLedgerDatabase</Name>
+    <DSP>Microsoft.Data.Tools.Schema.Sql.Sql170DatabaseSchemaProvider</DSP>
+    <ModelCollation>1033, CI</ModelCollation>
+    <ProjectGuid>FBCAFD7A-B6CA-4986-9BBA-0DF0FC4057D3</ProjectGuid>
+    <!-- Tables are owned by CrossLedgerWeb's EF Core migrations, not modeled here - this
+         project only contains stored procedures that run against them. SQL71501
+         ("has an unresolved reference to object [dbo].[Wallets]" etc.) is therefore
+         expected on every procedure and is not a real error. -->
+    <SuppressTSqlWarnings>71501</SuppressTSqlWarnings>
+  </PropertyGroup>
+</Project>
